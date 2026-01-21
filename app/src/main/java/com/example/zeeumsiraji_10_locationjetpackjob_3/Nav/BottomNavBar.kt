@@ -31,8 +31,8 @@ fun BottomNavBar(
             )
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-            label = { Text("Profile") },
+            icon = { Icon(Icons.Default.AccountBox, contentDescription = "Note") },
+            label = { Text("Note") },
             selected = false,
             onClick = {
                 scope.launch {

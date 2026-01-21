@@ -5,6 +5,8 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.example.myapplicationjetpackjob_3.ui.screen.MapScreen
 import com.example.zeeumsiraji_10_locationjetpackjob_3.ui.screen.SettingsScreen
+import com.example.zeeumsiraji_10_locationjetpackjob_3.ui.screen.auth.SignInScreen
+import com.example.zeeumsiraji_10_locationjetpackjob_3.ui.screen.auth.SignUpScreen
 import kotlinx.coroutines.launch
 import com.example.zeeumsiraji_10_locationjetpackjob_3.ui.screen.home.HomeScreen
 

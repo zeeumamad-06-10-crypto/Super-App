@@ -18,24 +18,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.zeeumsiraji_10_locationjetpackjob_3.User
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
-fun SeeAllUserScreen(navController: NavHostController) {
-
+fun SeeAllUserScreen(
+    navController: NavHostController,
+    userViewModel: UserViewModel = viewModel()
+) {
     val context = LocalContext.current
-    val db = FirebaseFirestore.getInstance()
-    val auth = FirebaseAuth.getInstance()
-    val fusedLocationClient =
-        LocationServices.getFusedLocationProviderClient(context)
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
-    var users by remember { mutableStateOf(listOf<User>()) }
-    var searchQuery by remember { mutableStateOf("") } // 🔹 Search query
+    // 🔹 Collect StateFlow from ViewModel
+    val users by userViewModel.users.collectAsState()
+    val searchQuery by userViewModel.searchQuery.collectAsState() // FIX: val instead of var
 
     // 📍 Permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -46,26 +44,9 @@ fun SeeAllUserScreen(navController: NavHostController) {
         }
     }
 
-    // 🔥 Firestore realtime listener
-    LaunchedEffect(Unit) {
-        db.collection("users")
-            .addSnapshotListener { snapshot, _ ->
-                users = snapshot?.documents?.map { doc ->
-                    User(
-                        userId = doc.id,
-                        name = doc.getString("name") ?: "",
-                        email = doc.getString("email") ?: "",
-                        location = doc.getString("location") ?: "",
-                        latitude = doc.getDouble("latitude"),
-                        longitude = doc.getDouble("longitude")
-                    )
-                } ?: emptyList()
-            }
-    }
-
     Column(modifier = Modifier.fillMaxSize()) {
 
-        // 🔹 Search TextField
+        // 🔹 Search Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -74,7 +55,7 @@ fun SeeAllUserScreen(navController: NavHostController) {
         ) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = { userViewModel.setSearchQuery(it) }, // update via ViewModel
                 label = { Text("Search by Name, Email, Location") },
                 modifier = Modifier.weight(1f)
             )
@@ -82,12 +63,10 @@ fun SeeAllUserScreen(navController: NavHostController) {
             Button(
                 onClick = { /* just triggers recomposition */ },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
-            ) {
-                Text("Search")
-            }
+            ) { Text("Search") }
         }
 
-        // 🔹 Filtered list
+        // 🔹 Filter users
         val filteredUsers = users.filter { user ->
             val query = searchQuery.lowercase()
             user.name.lowercase().contains(query) ||
@@ -98,10 +77,9 @@ fun SeeAllUserScreen(navController: NavHostController) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
             items(filteredUsers) { user ->
 
                 var name by remember { mutableStateOf(user.name) }
@@ -119,35 +97,30 @@ fun SeeAllUserScreen(navController: NavHostController) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
 
-                        // 🔹 TextFields
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
                             label = { Text("Name") },
                             modifier = Modifier.fillMaxWidth()
                         )
-
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
                             label = { Text("Email") },
                             modifier = Modifier.fillMaxWidth()
                         )
-
                         OutlinedTextField(
                             value = location,
                             onValueChange = { location = it },
                             label = { Text("Location") },
                             modifier = Modifier.fillMaxWidth()
                         )
-
                         OutlinedTextField(
                             value = latitude,
                             onValueChange = { latitude = it },
                             label = { Text("Latitude") },
                             modifier = Modifier.fillMaxWidth()
                         )
-
                         OutlinedTextField(
                             value = longitude,
                             onValueChange = { longitude = it },
@@ -164,7 +137,7 @@ fun SeeAllUserScreen(navController: NavHostController) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
 
-                            // 📍 AUTO LOCATION
+                            // 📍 Auto Location
                             Button(
                                 onClick = {
                                     if (ContextCompat.checkSelfPermission(
@@ -179,11 +152,7 @@ fun SeeAllUserScreen(navController: NavHostController) {
                                                 longitude = lng.toString()
                                             },
                                             onError = {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Unable to get location",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                Toast.makeText(context, "Unable to get location", Toast.LENGTH_SHORT).show()
                                             }
                                         )
                                     } else {
@@ -191,63 +160,49 @@ fun SeeAllUserScreen(navController: NavHostController) {
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
-                            ) {
-                                Text("Auto Location")
-                            }
+                            ) { Text("Auto Location") }
 
-                            // ✅ UPDATE
+                            // ✅ Update
                             Button(
                                 onClick = {
-                                    val lat = latitude.toDoubleOrNull()
-                                    val lng = longitude.toDoubleOrNull()
-
-                                    val updateMap = mutableMapOf<String, Any>(
-                                        "name" to name,
-                                        "email" to email,
-                                        "location" to location
-                                    )
-
-                                    lat?.let { updateMap["latitude"] = it }
-                                    lng?.let { updateMap["longitude"] = it }
-
-                                    db.collection("users").document(user.userId)
-                                        .update(updateMap)
-                                        .addOnSuccessListener {
-                                            Toast.makeText(context, "User updated", Toast.LENGTH_SHORT).show()
-                                        }
-                                        .addOnFailureListener {
-                                            Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
-                                        }
+                                    userViewModel.updateUser(
+                                        user,
+                                        name,
+                                        email,
+                                        location,
+                                        latitude.toDoubleOrNull(),
+                                        longitude.toDoubleOrNull()
+                                    ) { success ->
+                                        Toast.makeText(
+                                            context,
+                                            if (success) "Updated" else "Update Failed",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                            ) {
-                                Text("Update")
-                            }
+                            ) { Text("Update") }
 
-                            // ❌ DELETE
+                            // ❌ Delete
                             Button(
                                 onClick = {
-                                    db.collection("users").document(user.userId)
-                                        .delete()
-                                        .addOnSuccessListener {
-                                            auth.currentUser?.delete()
-                                            Toast.makeText(context, "User deleted", Toast.LENGTH_SHORT).show()
-                                        }
-                                        .addOnFailureListener {
-                                            Toast.makeText(context, "Delete failed", Toast.LENGTH_SHORT).show()
-                                        }
+                                    userViewModel.deleteUser(user) { success ->
+                                        Toast.makeText(
+                                            context,
+                                            if (success) "Deleted" else "Delete Failed",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                            ) {
-                                Text("Delete")
-                            }
+                            ) { Text("Delete") }
 
-                        }
-                    }
-                }
-            }
-        }
-    }
+                        } // End Row
+                    } // End Column
+                } // End Card
+            } // End items
+        } // End LazyColumn
+    } // End Column
 }
 
 @SuppressLint("MissingPermission")
@@ -258,11 +213,8 @@ fun getCurrentLocation(
 ) {
     fusedLocationClient.lastLocation
         .addOnSuccessListener { location ->
-            if (location != null) {
-                onSuccess(location.latitude, location.longitude)
-            } else {
-                onError()
-            }
+            if (location != null) onSuccess(location.latitude, location.longitude)
+            else onError()
         }
         .addOnFailureListener { onError() }
 }

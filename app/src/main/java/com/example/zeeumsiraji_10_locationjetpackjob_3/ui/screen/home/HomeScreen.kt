@@ -160,10 +160,10 @@ fun CategoryGrid(navController: NavHostController) {
     val categories = listOf(
         Category("My Shop", Icons.Default.Home),
         Category("Support Team", Icons.Default.Build),
-        Category("SeeAllUserScreen", Icons.Default.AddCircle),
+        Category("SeeAllUserScreen", Icons.Default.Person),
         Category("Location", Icons.Default.LocationOn),
-        Category("Gas Station", Icons.Default.MoreVert),
-        Category("Train", Icons.Default.Send)
+        Category("Scanner", Icons.Default.AddCircle),
+        Category("MyBank", Icons.Default.Send)
     )
 
     LazyVerticalGrid(
