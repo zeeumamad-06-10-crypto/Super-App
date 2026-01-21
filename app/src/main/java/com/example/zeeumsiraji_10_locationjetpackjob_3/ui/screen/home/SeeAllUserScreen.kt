@@ -35,6 +35,7 @@ fun SeeAllUserScreen(navController: NavHostController) {
         LocationServices.getFusedLocationProviderClient(context)
 
     var users by remember { mutableStateOf(listOf<User>()) }
+    var searchQuery by remember { mutableStateOf("") } // 🔹 Search query
 
     // 📍 Permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -62,160 +63,192 @@ fun SeeAllUserScreen(navController: NavHostController) {
             }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
 
-        items(users) { user ->
+        // 🔹 Search TextField
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Search by Name, Email, Location") },
+                modifier = Modifier.weight(1f)
+            )
 
-            var name by remember { mutableStateOf(user.name) }
-            var email by remember { mutableStateOf(user.email) }
-            var location by remember { mutableStateOf(user.location) }
-            var latitude by remember { mutableStateOf(user.latitude?.toString() ?: "") }
-            var longitude by remember { mutableStateOf(user.longitude?.toString() ?: "") }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp)
+            Button(
+                onClick = { /* just triggers recomposition */ },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Text("Search")
+            }
+        }
+
+        // 🔹 Filtered list
+        val filteredUsers = users.filter { user ->
+            val query = searchQuery.lowercase()
+            user.name.lowercase().contains(query) ||
+                    user.email.lowercase().contains(query) ||
+                    user.location.lowercase().contains(query)
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+
+            items(filteredUsers) { user ->
+
+                var name by remember { mutableStateOf(user.name) }
+                var email by remember { mutableStateOf(user.email) }
+                var location by remember { mutableStateOf(user.location) }
+                var latitude by remember { mutableStateOf(user.latitude?.toString() ?: "") }
+                var longitude by remember { mutableStateOf(user.longitude?.toString() ?: "") }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(4.dp)
                 ) {
-
-                    // 🔹 TextFields
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Name") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = location,
-                        onValueChange = { location = it },
-                        label = { Text("Location") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = latitude,
-                        onValueChange = { latitude = it },
-                        label = { Text("Latitude") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = longitude,
-                        onValueChange = { longitude = it },
-                        label = { Text("Longitude") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // 🔹 Buttons Row (scrollable)
-                    val scrollState = rememberScrollState()
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(scrollState),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
 
-                        // 📍 AUTO LOCATION
-                        Button(
-                            onClick = {
-                                if (ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.ACCESS_FINE_LOCATION
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                ) {
-                                    getCurrentLocation(
-                                        fusedLocationClient,
-                                        onSuccess = { lat, lng ->
-                                            latitude = lat.toString()
-                                            longitude = lng.toString()
-                                        },
-                                        onError = {
-                                            Toast.makeText(
-                                                context,
-                                                "Unable to get location",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
+                        // 🔹 TextFields
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("Name") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            label = { Text("Email") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = location,
+                            onValueChange = { location = it },
+                            label = { Text("Location") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = latitude,
+                            onValueChange = { latitude = it },
+                            label = { Text("Latitude") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = longitude,
+                            onValueChange = { longitude = it },
+                            label = { Text("Longitude") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // 🔹 Buttons Row (scrollable)
+                        val scrollState = rememberScrollState()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(scrollState),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+
+                            // 📍 AUTO LOCATION
+                            Button(
+                                onClick = {
+                                    if (ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.ACCESS_FINE_LOCATION
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        getCurrentLocation(
+                                            fusedLocationClient,
+                                            onSuccess = { lat, lng ->
+                                                latitude = lat.toString()
+                                                longitude = lng.toString()
+                                            },
+                                            onError = {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Unable to get location",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        )
+                                    } else {
+                                        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
+                            ) {
+                                Text("Auto Location")
+                            }
+
+                            // ✅ UPDATE
+                            Button(
+                                onClick = {
+                                    val lat = latitude.toDoubleOrNull()
+                                    val lng = longitude.toDoubleOrNull()
+
+                                    val updateMap = mutableMapOf<String, Any>(
+                                        "name" to name,
+                                        "email" to email,
+                                        "location" to location
                                     )
-                                } else {
-                                    permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
-                        ) {
-                            Text("Auto nLocation")
+
+                                    lat?.let { updateMap["latitude"] = it }
+                                    lng?.let { updateMap["longitude"] = it }
+
+                                    db.collection("users").document(user.userId)
+                                        .update(updateMap)
+                                        .addOnSuccessListener {
+                                            Toast.makeText(context, "User updated", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .addOnFailureListener {
+                                            Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
+                                        }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                            ) {
+                                Text("Update")
+                            }
+
+                            // ❌ DELETE
+                            Button(
+                                onClick = {
+                                    db.collection("users").document(user.userId)
+                                        .delete()
+                                        .addOnSuccessListener {
+                                            auth.currentUser?.delete()
+                                            Toast.makeText(context, "User deleted", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .addOnFailureListener {
+                                            Toast.makeText(context, "Delete failed", Toast.LENGTH_SHORT).show()
+                                        }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                            ) {
+                                Text("Delete")
+                            }
+
                         }
-
-                        // ✅ UPDATE
-                        Button(
-                            onClick = {
-                                val lat = latitude.toDoubleOrNull()
-                                val lng = longitude.toDoubleOrNull()
-
-                                val updateMap = mutableMapOf<String, Any>(
-                                    "name" to name,
-                                    "email" to email,
-                                    "location" to location
-                                )
-
-                                lat?.let { updateMap["latitude"] = it }
-                                lng?.let { updateMap["longitude"] = it }
-
-                                db.collection("users").document(user.userId)
-                                    .update(updateMap)
-                                    .addOnSuccessListener {
-                                        Toast.makeText(context, "User updated", Toast.LENGTH_SHORT).show()
-                                    }
-                                    .addOnFailureListener {
-                                        Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
-                                    }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                        ) {
-                            Text("Update")
-                        }
-
-                        // ❌ DELETE
-                        Button(
-                            onClick = {
-                                db.collection("users").document(user.userId)
-                                    .delete()
-                                    .addOnSuccessListener {
-                                        auth.currentUser?.delete()
-                                        Toast.makeText(context, "User deleted", Toast.LENGTH_SHORT).show()
-                                    }
-                                    .addOnFailureListener {
-                                        Toast.makeText(context, "Delete failed", Toast.LENGTH_SHORT).show()
-                                    }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                        ) {
-                            Text("Delete")
-                        }
-
-                    } // End Row
-                } // End Column
-            } // End Card
-        } // End items
-    } // End LazyColumn
-} // End Composable
+                    }
+                }
+            }
+        }
+    }
+}
 
 @SuppressLint("MissingPermission")
 fun getCurrentLocation(
